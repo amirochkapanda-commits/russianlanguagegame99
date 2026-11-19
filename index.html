@@ -7,7 +7,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap');
 :root{--bg:#081014;--panel:rgba(12,22,27,.92);--line:rgba(180,213,213,.2);--muted:#9fb3b7;--text:#f4f8f5;--lime:#cbff4a;--cyan:#48dfd0;--red:#ff6878}
 *{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#081014;color:var(--text);font-family:Manrope,system-ui,sans-serif}body{overflow-x:hidden}button{font:inherit;cursor:pointer}button:focus-visible{outline:3px solid var(--cyan);outline-offset:3px}
-#raceCanvas{position:fixed;inset:0;width:100%;height:100%;z-index:0;display:block}.scene-shade{position:fixed;inset:0;z-index:1;pointer-events:none;background:linear-gradient(180deg,rgba(5,12,15,.4),rgba(5,12,15,.02) 42%,rgba(5,12,15,.76))}
+#raceCanvas{position:fixed;inset:0;width:100%;height:100%;z-index:0;display:block}.scene-shade{position:fixed;inset:0;z-index:1;pointer-events:none;background:linear-gradient(180deg,rgba(5,12,15,.25),rgba(5,12,15,.0) 42%,rgba(5,12,15,.42))}
 .app{position:relative;z-index:2;max-width:1240px;margin:0 auto;padding:18px 24px 34px;min-height:100vh}.top{height:54px;display:flex;align-items:center;justify-content:space-between}
 .brand{display:flex;align-items:center;gap:11px;font-weight:900;letter-spacing:.1em;font-size:14px;text-shadow:0 2px 12px #000}.logo{width:40px;height:40px;border-radius:12px;background:var(--lime);color:#10170b;display:grid;place-items:center;font-size:22px;box-shadow:0 0 30px #cbff4a66}.brand small{display:block;color:#a7b8b8;font-size:9px;letter-spacing:.2em;margin-top:3px}.top-pill{border:1px solid var(--line);border-radius:99px;padding:8px 13px;background:#071115cc;color:#c6d3d1;font-size:11px;font-weight:800;letter-spacing:.08em}
 .screen{display:none}.screen.active{display:block;animation:fadein .28s ease}@keyframes fadein{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
@@ -111,7 +111,7 @@ function animate(){
   const passedSpeed=i===0?raceAdvantage:Math.max(0,raceAdvantage-2);
   const rivalZ=rivalStartZ[i]+passedSpeed*3.35;
   car.position.z+=(rivalZ-car.position.z)*Math.min(1,dt*2.8);
-  car.position.x+=(i===0?-3.05:3.05)+Math.sin(t*1.05+i*2)*.16;
+  const laneTarget=(i===0?-3.05:3.05)+Math.sin(t*1.05+i*2)*.16;car.position.x+=(laneTarget-car.position.x)*Math.min(1,dt*2.2);
   car.position.y=.018+Math.sin(t*6+i)*.025;car.rotation.z=Math.sin(t*.9+i)*.018;
   car.userData.wheels.forEach(w=>{w.rotation.x+=dt*scrollSpeed*1.7;});
   if(rivalZ>5.4&&!overtaken[i]){overtaken[i]=true;car.visible=false;updateRaceDisplay();}
@@ -162,7 +162,7 @@ function startLevel(n){
 }
 function updateHUD(){
  $('score').textContent=correct+'/'+(lockedAnswer?index+1:index);$('percent').textContent=(correct/Math.max(1,index+(lockedAnswer?1:0))*100).toFixed(0)+'%';$('progressFill').style.width=((index+(lockedAnswer?1:0))/20*100)+'%';
- $('raceLabel').textContent='СЛОВО '+String(index+1).padStart(2,'0')+'/20';const pos=raceAdvantage>=7?1:raceAdvantage>=2?2:3;$('positionLabel').textContent=pos+' МЕСТО';
+ $('raceLabel').textContent='СЛОВО '+String(index+1).padStart(2,'0')+'/20';updateRaceDisplay();
 }
 function renderQuestion(){
  clearClocks();if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();lockedAnswer=false;time=10;const q=levels[current].items[order[index]];
