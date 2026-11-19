@@ -141,7 +141,7 @@ function clearClocks(){if(tick){clearInterval(tick);tick=null;}if(autoAdvance){c
 function startLevel(n){
  if(n>=unlocked)return;clearClocks();current=n;index=0;correct=0;lockedAnswer=false;order=levels[n].items.map((_,i)=>i);
  for(let i=order.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[order[i],order[j]]=[order[j],order[i]];}
- $('levelKicker').textContent='ЭТАП 0'+(n+1);$('levelName').textContent=levels[n].short;$('target').textContent=levels[n].target+'/20';$('ruleTarget').textContent='Для победы нужно '+levels[n].target+' из 20';
+ $('levelKicker').textContent='УРОВЕНЬ 0'+(n+1);$('levelName').textContent=levels[n].short;$('target').textContent=levels[n].target+'/20';
  resetRaceScene();raceActive=true;show('game');renderQuestion();
 }
 function updateHUD(){
