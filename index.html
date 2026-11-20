@@ -30,10 +30,48 @@
 @media(max-width:760px){.racing-hud{margin:10px auto 8px;gap:7px}.speedometer{width:125px;padding:8px 10px}.speed-number strong{font-size:24px}.overtake-panel{padding:8px 10px}.overtake-message{font-size:9px}.app{padding:12px 13px 25px}.top{height:46px}.logo{width:35px;height:35px}.home-wrap{padding-top:24px}.hero{padding:22px 19px;border-radius:19px}h1{font-size:clamp(39px,12vw,58px)}.lead{font-size:12px}.home-stats{margin-bottom:20px}.levels{grid-template-columns:1fr}.level{padding:14px}.level h3{font-size:14px}.level button{margin-top:8px}.game-head{align-items:flex-start;flex-direction:column}.hud{width:100%}.hudbox{min-width:0;flex:1;padding:7px 5px}.hudbox b{font-size:16px}.game-layout{grid-template-columns:1fr;margin-top:clamp(24px,9vh,80px)}.sideinfo{display:none}.question-card{padding:17px 15px}.answers{grid-template-columns:repeat(3,1fr);gap:7px}.answer{padding:13px 5px;font-size:15px}.word{margin-top:15px}#game{padding-top:5px}.race-status{margin-bottom:8px}.race-tag{font-size:8px}.result{margin-top:50px;padding:30px 16px}}
 @media(max-width:380px){.app{padding-left:10px;padding-right:10px}.answers{gap:5px}.answer{font-size:14px}.hudbox small{font-size:7px}.top-pill{font-size:9px;padding:7px 9px}}
 @media(min-width:761px) and (max-height:760px){.home-wrap{padding-top:20px}.game-layout{margin-top:12px}.question-card{padding:15px 22px}.word{margin:9px 0 2px}.hint{margin-bottom:10px}.answer{padding:10px}}
+ 
+/* The 3D race is a dedicated playable viewport, not a page background. */
+#raceCanvas{position:absolute;inset:0;width:100%;height:100%;z-index:0;display:block}
+.scene-shade{display:none}
+.race-stage{position:relative;width:100%;height:clamp(280px,43vh,440px);margin:13px 0 0;overflow:hidden;border:1px solid rgba(193,220,211,.32);border-radius:18px;background:linear-gradient(#263b37,#0d171a);box-shadow:0 18px 54px #0009;isolation:isolate}
+.race-stage:after{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(180deg,rgba(4,12,14,.35),transparent 30%,transparent 70%,rgba(4,12,14,.38))}
+.stage-top{position:absolute;z-index:2;top:12px;left:12px;right:12px;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;pointer-events:none}
+.stage-top .speedometer{background:rgba(5,13,15,.78);border-color:rgba(203,255,74,.55);backdrop-filter:blur(7px)}
+.stage-top .overtake-panel{max-width:245px;background:rgba(5,13,15,.78);backdrop-filter:blur(7px)}
+.stage-bottom{position:absolute;z-index:2;bottom:12px;left:14px;right:14px;display:flex;justify-content:space-between;color:#e1eae3;text-shadow:0 2px 8px #000;font-size:9px;font-weight:900;letter-spacing:.15em;pointer-events:none}
+.race-status{max-width:930px;margin:10px auto 0}
+.game-layout{display:block;max-width:760px;margin:13px auto 0}
+.question-card{padding:17px 22px;background:rgba(9,17,21,.96);backdrop-filter:blur(9px);box-shadow:0 12px 35px #0008}
+.word{margin:10px 0 2px;font-size:clamp(30px,4vw,43px)}
+.hint{margin-bottom:10px}
+.answers{gap:8px}
+.answer{padding:11px 9px}
+.feedback{margin-top:8px}
+.nextrow{margin-top:8px}
+#threeStatus{display:none}
+@media(max-width:760px){
+ .race-stage{height:clamp(230px,34vh,310px);margin-top:10px;border-radius:14px}
+ .stage-top{top:8px;left:8px;right:8px;gap:7px}
+ .stage-top .speedometer{width:120px;padding:7px 9px}
+ .stage-top .speed-number strong{font-size:22px}
+ .stage-top .overtake-panel{padding:7px 9px;max-width:185px;gap:6px}
+ .overtake-count strong{font-size:18px}
+ .overtake-count span{font-size:7px}
+ .overtake-message{font-size:8px}
+ .stage-bottom{bottom:8px;left:10px;right:10px;font-size:8px}
+ .game-layout{margin-top:10px}
+ .question-card{padding:13px 12px}
+ .qtop{font-size:9px}
+ .timer{width:40px;height:40px;font-size:15px}
+ .word{font-size:32px;margin:6px 0 0}
+ .hint{font-size:9px;margin-bottom:8px}
+ .answer{padding:11px 5px;font-size:14px}
+ .feedback{font-size:10px;padding:8px 10px}
+}
 </style>
 </head>
 <body>
-<canvas id="raceCanvas"></canvas><div class="scene-shade"></div>
 <div class="app">
 <header class="top"><div class="brand"><div class="logo">Ｇ</div><div>GRAM PRIX<small>RUSSIAN LANGUAGE RACING</small></div></div><div class="top-pill">3 УРОВНЯ · 60 СЛОВ</div></header>
 <main>
@@ -44,12 +82,20 @@
 </div></section>
 <section id="game" class="screen">
  <div class="game-head"><div class="game-title"><span id="levelKicker">ЭТАП 01</span><h2 id="levelName">Гонка за грамотность</h2></div><div class="hud"><div class="hudbox"><b id="score">0/20</b><small>ВЕРНО</small></div><div class="hudbox"><b id="percent">0%</b><small>ТОЧНОСТЬ</small></div><div class="hudbox targetbox"><b id="target">80%</b><small>МИН. ТОЧНОСТЬ</small></div></div></div>
- <div class="racing-hud"><div class="speedometer"><div class="speed-caption">СКОРОСТЬ</div><div class="speed-number"><strong id="speedValue">120</strong><span>КМ/Ч</span></div><div class="speedbar"><i id="speedFill"></i></div></div><div class="overtake-panel"><div class="overtake-count"><strong id="overtakeCount">0/2</strong><span>СОПЕРНИКИ ОБОГНАНЫ</span></div><div class="overtake-message" id="overtakeMessage">Обгони двух соперников</div></div></div><div class="race-status"><div class="race-tag" id="raceLabel">СЛОВО 01/20</div><div class="progress"><div id="progressFill"></div></div><div class="race-tag" id="positionLabel">3 МЕСТО</div></div>
+ <div class="race-stage" id="raceStage">
+  <canvas id="raceCanvas"></canvas>
+  <div class="stage-top">
+   <div class="speedometer"><div class="speed-caption">СКОРОСТЬ</div><div class="speed-number"><strong id="speedValue">120</strong><span>КМ/Ч</span></div><div class="speedbar"><i id="speedFill"></i></div></div>
+   <div class="overtake-panel"><div class="overtake-count"><strong id="overtakeCount">0/2</strong><span>ОБОГНАНО</span></div><div class="overtake-message" id="overtakeMessage">Обгони соперников</div></div>
+  </div>
+  <div class="stage-bottom"><span id="positionLabel">3 МЕСТО</span><span>3D ГОНКА</span></div>
+ </div>
+ <div class="race-status"><div class="race-tag" id="raceLabel">СЛОВО 01/20</div><div class="progress"><div id="progressFill"></div></div></div>
  <div class="game-layout"><div class="question-card"><div class="qtop"><span id="qNumber">ВОПРОС 01 / 20</span><div class="timer" id="timer">10</div></div><div class="word" id="word">апельсин<span class="blank">___</span></div><div class="hint" id="hint">Выбери правильное окончание</div><div class="answers" id="answers"></div><div class="feedback" id="feedback"></div><div class="nextrow"><small id="raceStatus"></small><button class="btn primary" id="nextBtn" style="display:none">ДАЛЬШЕ →</button></div></div>
  </div>
 </section>
 <section id="result" class="screen"><div class="result"><div class="medal" id="resultIcon">🏁</div><div class="eyebrow" id="resultKicker">ЗАЕЗД ЗАВЕРШЁН</div><h2 id="resultTitle">Отличная гонка!</h2><div class="result-score" id="resultScore">18/20</div><p id="resultText"></p><div class="result-actions"><button class="btn primary" id="resultPrimary">СЛЕДУЮЩИЙ ЭТАП →</button><button class="btn secondary" id="resultHome">В МЕНЮ</button></div></div></section>
-</main><div class="footer">GRAM PRIX</div></div><div id="threeStatus">ЗАГРУЗКА 3D-СЦЕНЫ…</div>
+</main><div class="footer">GRAM PRIX</div></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
 const canvas=document.getElementById('raceCanvas');let scene,camera,renderer,playerCar,rivalCars=[],roadDashes=[],curbBlocks=[],roadsideProps=[],clock,sceneReady=false;
@@ -70,7 +116,7 @@ function createCar(color,accent,glass){
   const h=new THREE.Mesh(new THREE.CylinderGeometry(.22,.22,.335,16),rim);h.rotation.z=Math.PI/2;h.position.copy(w.position);g.add(h);
   const cap=new THREE.Mesh(new THREE.CylinderGeometry(.075,.075,.35,12),trim);cap.rotation.z=Math.PI/2;cap.position.copy(w.position);g.add(cap);
  }
- g.userData.wheels=wheels;const shadow=new THREE.Mesh(new THREE.PlaneGeometry(2.6,4.8),new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:.28,depthWrite:false}));shadow.rotation.x=-Math.PI/2;shadow.position.y=.025;g.add(shadow);return g;
+ g.scale.setScalar(1.28);g.userData.wheels=wheels;const shadow=new THREE.Mesh(new THREE.PlaneGeometry(2.6,4.8),new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:.28,depthWrite:false}));shadow.rotation.x=-Math.PI/2;shadow.position.y=.025;g.add(shadow);return g;
 }
 function createTree(x,z,scale=1){
  const g=new THREE.Group(),trunk=mat(0x574332),f1=mat(0x1c553e),f2=mat(0x2b7650);
@@ -84,8 +130,8 @@ function createPost(x,z){
 }
 function setupScene(){
  scene=new THREE.Scene();scene.background=new THREE.Color(0x0b171b);scene.fog=new THREE.Fog(0x0b171b,30,118);
- camera=new THREE.PerspectiveCamera(48,innerWidth/innerHeight,.1,180);camera.position.set(0,7.6,14.5);camera.lookAt(0,0,-9);
- renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,1.8));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;
+ camera=new THREE.PerspectiveCamera(42,16/7,.1,180);camera.position.set(0,6.9,11.7);camera.lookAt(0,.65,-5);
+ renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));renderer.setSize(960,420,false);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;
  scene.add(new THREE.HemisphereLight(0xc8e8e0,0x1b2520,2.15));const sun=new THREE.DirectionalLight(0xffe5b8,3.1);sun.position.set(-9,18,9);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-20;sun.shadow.camera.right=20;sun.shadow.camera.top=25;sun.shadow.camera.bottom=-25;scene.add(sun);const fill=new THREE.DirectionalLight(0x8dc7db,1.15);fill.position.set(10,8,-15);scene.add(fill);
  const ground=new THREE.Mesh(new THREE.PlaneGeometry(240,250),mat(0x1e4436));ground.rotation.x=-Math.PI/2;ground.position.set(0,-.16,-45);ground.receiveShadow=true;scene.add(ground);
  const road=new THREE.Mesh(new THREE.PlaneGeometry(14,190),mat(0x30383b,.96));road.rotation.x=-Math.PI/2;road.position.set(0,-.04,-48);road.receiveShadow=true;scene.add(road);
@@ -120,7 +166,7 @@ function animate(){
  document.getElementById("speedValue").textContent=shownSpeed;
  document.getElementById("speedFill").style.width=Math.min(100,Math.max(0,(shownSpeed-100)/2.2))+"%";
  camera.fov=48-Math.min(3,(shownSpeed-120)/65);camera.updateProjectionMatrix();
- const targetCameraX=playerCar?playerCar.position.x*.24:0;camera.position.x+=(targetCameraX-camera.position.x)*Math.min(1,dt*1.5);camera.position.y=7.5+Math.sin(t*1.3)*.08;camera.lookAt(playerCar?playerCar.position.x*.15:0,.3,-8.5);renderer.render(scene,camera);
+ const targetCameraX=playerCar?playerCar.position.x*.24:0;camera.position.x+=(targetCameraX-camera.position.x)*Math.min(1,dt*1.5);camera.position.y=6.9+Math.sin(t*1.3)*.055;camera.lookAt(playerCar?playerCar.position.x*.15:0,.45,-5);renderer.render(scene,camera);
 }
 function resetRaceScene(){raceAdvantage=0;playerLane=0;boost=0;currentSpeed=120;targetSpeed=120;overtaken=[false,false];rivalCars.forEach((car,i)=>{car.visible=true;car.position.set(i===0?-3.05:3.05,0,rivalStartZ[i]);});if(playerCar)playerCar.position.set(0,0,3.2);updateRaceDisplay();}
 function updateRaceDisplay(){const passed=overtaken.filter(Boolean).length;document.getElementById("overtakeCount").textContent=passed+"/2";document.getElementById("overtakeMessage").textContent=passed===2?"Оба позади!":passed===1?"Один обогнан":"Обгони соперников";document.getElementById("positionLabel").textContent=passed===2?"1 МЕСТО":passed===1?"2 МЕСТО":"3 МЕСТО";}
@@ -128,7 +174,8 @@ function raceAnswer(ok){if(ok){raceAdvantage+=1;targetSpeed=Math.min(300,targetS
 function changeLane(dir){playerLane=Math.max(-1,Math.min(1,playerLane+dir));}
 
 window.addEventListener('keydown',e=>{if(e.key==='ArrowLeft')changeLane(-1);if(e.key==='ArrowRight')changeLane(1);});
-window.addEventListener('resize',()=>{if(!renderer)return;camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+function resizeRaceScene(){if(!renderer||!camera)return;const stage=document.getElementById('raceStage');if(!stage)return;const w=stage.clientWidth,h=stage.clientHeight;if(!w||!h)return;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
+window.addEventListener('resize',resizeRaceScene);
 try{setupScene();}catch(e){document.getElementById('threeStatus').textContent='3D-СЦЕНА НЕ ЗАГРУЗИЛАСЬ';console.error(e);}
 
 // Три уровня: у каждого вопроса один нормативный ответ.
@@ -158,7 +205,7 @@ function startLevel(n){
  if(n>=unlocked)return;clearClocks();current=n;index=0;correct=0;lockedAnswer=false;order=levels[n].items.map((_,i)=>i);
  for(let i=order.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[order[i],order[j]]=[order[j],order[i]];}
  $('levelKicker').textContent='УРОВЕНЬ 0'+(n+1);$('levelName').textContent=levels[n].short;$('target').textContent=(levels[n].target*5)+'%';
- resetRaceScene();raceActive=true;show('game');renderQuestion();
+ resetRaceScene();raceActive=true;show('game');requestAnimationFrame(resizeRaceScene);renderQuestion();
 }
 function updateHUD(){
  $('score').textContent=correct+'/'+(lockedAnswer?index+1:index);$('percent').textContent=(correct/Math.max(1,index+(lockedAnswer?1:0))*100).toFixed(0)+'%';$('progressFill').style.width=((index+(lockedAnswer?1:0))/20*100)+'%';
