@@ -211,7 +211,7 @@ function startLevel(n){
  if(n>=unlocked)return;clearClocks();current=n;index=0;correct=0;lockedAnswer=false;order=levels[n].items.map((_,i)=>i);
  for(let i=order.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[order[i],order[j]]=[order[j],order[i]];}
  $('levelKicker').textContent='УРОВЕНЬ 0'+(n+1);$('levelName').textContent=levels[n].short;$('target').textContent=(levels[n].target*5)+'%';
- resetRaceScene();raceActive=true;show('game');requestAnimationFrame(resizeRaceScene);renderQuestion();
+ resetRaceScene();raceActive=true;show('game');requestAnimationFrame(()=>{resizeFallback();resizeRaceScene();});renderQuestion();
 }
 function updateHUD(){
  $('score').textContent=correct+'/'+(lockedAnswer?index+1:index);$('percent').textContent=(correct/Math.max(1,index+(lockedAnswer?1:0))*100).toFixed(0)+'%';$('progressFill').style.width=((index+(lockedAnswer?1:0))/20*100)+'%';
