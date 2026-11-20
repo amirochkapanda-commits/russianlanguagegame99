@@ -69,6 +69,12 @@
  .answer{padding:11px 5px;font-size:14px}
  .feedback{font-size:10px;padding:8px 10px}
 }
+ 
+/* Functional fallback and visible touch targets while the optional 3D layer loads. */
+#raceCanvas{pointer-events:none}
+.answer,.btn,.level button{position:relative;z-index:5;pointer-events:auto;touch-action:manipulation}
+.race-stage.no-3d{background:radial-gradient(ellipse at 50% 40%,#304b3b,#101a1a 70%)}
+.race-stage.no-3d:before{content:"3D недоступно · Игра работает";position:absolute;z-index:3;left:50%;top:50%;transform:translate(-50%,-50%);font-size:12px;color:#c8d5ce;background:#0a1418bb;border:1px solid #829b78;padding:10px 14px;border-radius:10px;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -97,7 +103,7 @@
 <section id="result" class="screen"><div class="result"><div class="medal" id="resultIcon">🏁</div><div class="eyebrow" id="resultKicker">ЗАЕЗД ЗАВЕРШЁН</div><h2 id="resultTitle">Отличная гонка!</h2><div class="result-score" id="resultScore">18/20</div><p id="resultText"></p><div class="result-actions"><button class="btn primary" id="resultPrimary">СЛЕДУЮЩИЙ ЭТАП →</button><button class="btn secondary" id="resultHome">В МЕНЮ</button></div></div></section>
 </main><div class="footer">GRAM PRIX</div></div>
 <script type="module">
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+let THREE=null;
 const canvas=document.getElementById('raceCanvas');let scene,camera,renderer,playerCar,rivalCars=[],roadDashes=[],curbBlocks=[],roadsideProps=[],clock,sceneReady=false;
 let raceActive=false,raceAdvantage=0,playerLane=0,boost=0,currentSpeed=120,targetSpeed=120,overtaken=[false,false];const rivalStartZ=[-7.5,-13.8],laneX=[-3.05,0,3.05];
 function mat(color,roughness=.65,metalness=.05){return new THREE.MeshStandardMaterial({color,roughness,metalness});}
@@ -176,7 +182,7 @@ function changeLane(dir){playerLane=Math.max(-1,Math.min(1,playerLane+dir));}
 window.addEventListener('keydown',e=>{if(e.key==='ArrowLeft')changeLane(-1);if(e.key==='ArrowRight')changeLane(1);});
 function resizeRaceScene(){if(!renderer||!camera)return;const stage=document.getElementById('raceStage');if(!stage)return;const w=stage.clientWidth,h=stage.clientHeight;if(!w||!h)return;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
 window.addEventListener('resize',resizeRaceScene);
-try{setupScene();}catch(e){document.getElementById('threeStatus').textContent='3D-СЦЕНА НЕ ЗАГРУЗИЛАСЬ';console.error(e);}
+// 3D загружается отдельно от управления: сбой CDN не отключает игру.
 
 // Три уровня: у каждого вопроса один нормативный ответ.
 const levels=[
@@ -246,6 +252,24 @@ function finishRace(){
 $('nextBtn').addEventListener('click',nextWord);$('startBtn').addEventListener('click',()=>startLevel(0));$('levelsBtn').addEventListener('click',()=>$('homeLevels').scrollIntoView({behavior:'smooth',block:'center'}));$('resultHome').textContent='МЕНЮ';$('resultHome').addEventListener('click',()=>{raceActive=false;renderCards();show('home');});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&tick){clearInterval(tick);tick=null;}else if(!document.hidden&&$('game').classList.contains('active')&&!lockedAnswer){tick=setInterval(()=>{time--;$('timer').textContent=String(time);if(time<=3)$('timer').classList.add('danger');if(time<=0)chooseAnswer(-1,true);},1000);}});
 renderCards();
+
+// Three.js загружается асинхронно. Вопросы и все кнопки работают независимо от 3D-CDN.
+import('https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js')
+ .then(module=>{
+   THREE=module;
+   try{
+     setupScene();
+     resizeRaceScene();
+     if(raceActive) updateRaceDisplay();
+   }catch(error){
+     console.error('3D scene error:',error);
+     document.getElementById('raceStage')?.classList.add('no-3d');
+   }
+ })
+ .catch(error=>{
+   console.warn('3D library unavailable; continuing in fallback mode:',error);
+   document.getElementById('raceStage')?.classList.add('no-3d');
+ });
 </script>
 </body>
 </html>
