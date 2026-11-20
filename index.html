@@ -32,7 +32,7 @@
 @media(min-width:761px) and (max-height:760px){.home-wrap{padding-top:20px}.game-layout{margin-top:12px}.question-card{padding:15px 22px}.word{margin:9px 0 2px}.hint{margin-bottom:10px}.answer{padding:10px}}
  
 /* The 3D race is a dedicated playable viewport, not a page background. */
-#raceCanvas{position:absolute;inset:0;width:100%;height:100%;z-index:0;display:block}
+#raceCanvas{position:absolute;inset:0;width:100%;height:100%;z-index:0;display:none;pointer-events:none}#raceFallback{position:absolute;inset:0;width:100%;height:100%;z-index:0;display:block;pointer-events:none}
 .scene-shade{display:none}
 .race-stage{position:relative;width:100%;height:clamp(280px,43vh,440px);margin:13px 0 0;overflow:hidden;border:1px solid rgba(193,220,211,.32);border-radius:18px;background:linear-gradient(#263b37,#0d171a);box-shadow:0 18px 54px #0009;isolation:isolate}
 .race-stage:after{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(180deg,rgba(4,12,14,.35),transparent 30%,transparent 70%,rgba(4,12,14,.38))}
@@ -74,7 +74,7 @@
 #raceCanvas{pointer-events:none}
 .answer,.btn,.level button{position:relative;z-index:5;pointer-events:auto;touch-action:manipulation}
 .race-stage.no-3d{background:radial-gradient(ellipse at 50% 40%,#304b3b,#101a1a 70%)}
-.race-stage.no-3d:before{content:"3D недоступно · Игра работает";position:absolute;z-index:3;left:50%;top:50%;transform:translate(-50%,-50%);font-size:12px;color:#c8d5ce;background:#0a1418bb;border:1px solid #829b78;padding:10px 14px;border-radius:10px;white-space:nowrap}
+.race-stage.no-3d:before{display:none}
 </style>
 </head>
 <body>
@@ -89,7 +89,7 @@
 <section id="game" class="screen">
  <div class="game-head"><div class="game-title"><span id="levelKicker">ЭТАП 01</span><h2 id="levelName">Гонка за грамотность</h2></div><div class="hud"><div class="hudbox"><b id="score">0/20</b><small>ВЕРНО</small></div><div class="hudbox"><b id="percent">0%</b><small>ТОЧНОСТЬ</small></div><div class="hudbox targetbox"><b id="target">80%</b><small>МИН. ТОЧНОСТЬ</small></div></div></div>
  <div class="race-stage" id="raceStage">
-  <canvas id="raceCanvas"></canvas>
+  <canvas id="raceFallback" aria-hidden="true"></canvas><canvas id="raceCanvas"></canvas>
   <div class="stage-top">
    <div class="speedometer"><div class="speed-caption">СКОРОСТЬ</div><div class="speed-number"><strong id="speedValue">120</strong><span>КМ/Ч</span></div><div class="speedbar"><i id="speedFill"></i></div></div>
    <div class="overtake-panel"><div class="overtake-count"><strong id="overtakeCount">0/2</strong><span>ОБОГНАНО</span></div><div class="overtake-message" id="overtakeMessage">Обгони соперников</div></div>
@@ -253,23 +253,136 @@ $('nextBtn').addEventListener('click',nextWord);$('startBtn').addEventListener('
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&tick){clearInterval(tick);tick=null;}else if(!document.hidden&&$('game').classList.contains('active')&&!lockedAnswer){tick=setInterval(()=>{time--;$('timer').textContent=String(time);if(time<=3)$('timer').classList.add('danger');if(time<=0)chooseAnswer(-1,true);},1000);}});
 renderCards();
 
-// Three.js загружается асинхронно. Вопросы и все кнопки работают независимо от 3D-CDN.
-import('https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js')
- .then(module=>{
-   THREE=module;
-   try{
-     setupScene();
-     resizeRaceScene();
-     if(raceActive) updateRaceDisplay();
-   }catch(error){
-     console.error('3D scene error:',error);
-     document.getElementById('raceStage')?.classList.add('no-3d');
-   }
- })
- .catch(error=>{
-   console.warn('3D library unavailable; continuing in fallback mode:',error);
-   document.getElementById('raceStage')?.classList.add('no-3d');
- });
+// Независимая гоночная сцена на Canvas 2D: показывается сразу, ещё до загрузки WebGL.
+const fallbackCanvas=document.getElementById('raceFallback');
+const fallbackCtx=fallbackCanvas.getContext('2d',{alpha:false});
+let fallbackWidth=0,fallbackHeight=0,fallbackDpr=1,fallbackScroll=0,fallbackLast=0;
+function resizeFallback(){
+ const stage=document.getElementById('raceStage');if(!stage||!fallbackCtx)return;
+ const rect=stage.getBoundingClientRect();fallbackWidth=Math.max(1,rect.width);fallbackHeight=Math.max(1,rect.height);
+ fallbackDpr=Math.min(window.devicePixelRatio||1,1.7);
+ fallbackCanvas.width=Math.round(fallbackWidth*fallbackDpr);fallbackCanvas.height=Math.round(fallbackHeight*fallbackDpr);
+ fallbackCtx.setTransform(fallbackDpr,0,0,fallbackDpr,0,0);
+}
+function poly(ctx,points,fill,stroke=null,lineWidth=1){
+ ctx.beginPath();ctx.moveTo(points[0][0],points[0][1]);for(let i=1;i<points.length;i++)ctx.lineTo(points[i][0],points[i][1]);ctx.closePath();
+ if(fill){ctx.fillStyle=fill;ctx.fill();}if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=lineWidth;ctx.stroke();}
+}
+function drawFallbackCar(ctx,cx,baseY,w,h,color,accent,scale=1){
+ const x=cx-w/2,y=baseY-h,body=ctx.createLinearGradient(x,y,x+w,y);
+ body.addColorStop(0,'#10191b');body.addColorStop(.18,color);body.addColorStop(.52,accent);body.addColorStop(.82,color);body.addColorStop(1,'#10191b');
+ ctx.save();
+ ctx.fillStyle='rgba(0,0,0,.48)';ctx.beginPath();ctx.ellipse(cx,baseY+h*.015,w*.57,h*.14,0,0,Math.PI*2);ctx.fill();
+ // tires and deep wheel arches
+ ctx.fillStyle='#080b0d';ctx.beginPath();ctx.roundRect(x-w*.04,y+h*.46,w*.18,h*.43,h*.07);ctx.roundRect(x+w*.86,y+h*.46,w*.18,h*.43,h*.07);ctx.fill();
+ ctx.fillStyle='#6e7d7e';ctx.beginPath();ctx.roundRect(x-w*.005,y+h*.58,w*.105,h*.20,h*.04);ctx.roundRect(x+w*.90,y+h*.58,w*.105,h*.20,h*.04);ctx.fill();
+ // rear bumper / body volume
+ poly(ctx,[[x+w*.08,y+h*.56],[x+w*.17,y+h*.25],[x+w*.30,y+h*.09],[x+w*.70,y+h*.09],[x+w*.83,y+h*.25],[x+w*.92,y+h*.56],[x+w*.86,y+h*.89],[x+w*.14,y+h*.89]],body,'rgba(235,255,233,.35)',Math.max(1,w*.012));
+ poly(ctx,[[x+w*.13,y+h*.72],[x+w*.87,y+h*.72],[x+w*.83,y+h*.88],[x+w*.17,y+h*.88]],'#172024');
+ // rear glass with bright side reflections
+ const glass=ctx.createLinearGradient(x,y+h*.2,x+w,y+h*.55);glass.addColorStop(0,'#071318');glass.addColorStop(.5,'#42606a');glass.addColorStop(1,'#071318');
+ poly(ctx,[[x+w*.28,y+h*.18],[x+w*.72,y+h*.18],[x+w*.80,y+h*.47],[x+w*.20,y+h*.47]],glass,'rgba(198,237,231,.3)',1);
+ poly(ctx,[[x+w*.30,y+h*.19],[x+w*.40,y+h*.19],[x+w*.35,y+h*.43],[x+w*.25,y+h*.43]],'rgba(255,255,255,.17)');
+ // boot lid, diffuser and wing
+ poly(ctx,[[x+w*.16,y+h*.54],[x+w*.84,y+h*.54],[x+w*.80,y+h*.70],[x+w*.20,y+h*.70]],accent,'rgba(255,255,255,.22)',1);
+ poly(ctx,[[x+w*.06,y+h*.85],[x+w*.94,y+h*.85],[x+w*.88,y+h*.96],[x+w*.12,y+h*.96]],'#090d10');
+ poly(ctx,[[x+w*.12,y+h*.12],[x+w*.88,y+h*.12],[x+w*.95,y+h*.18],[x+w*.05,y+h*.18]],'#111a1d');
+ // lights
+ ctx.fillStyle='#ff3449';ctx.shadowColor='#ff283d';ctx.shadowBlur=Math.max(4,w*.055);
+ ctx.beginPath();ctx.roundRect(x+w*.13,y+h*.57,w*.20,h*.10,h*.03);ctx.roundRect(x+w*.67,y+h*.57,w*.20,h*.10,h*.03);ctx.fill();ctx.shadowBlur=0;
+ ctx.fillStyle='#f5fff0';ctx.fillRect(x+w*.40,y+h*.79,w*.20,h*.045);
+ ctx.fillStyle='rgba(255,255,255,.35)';ctx.fillRect(x+w*.21,y+h*.50,w*.58,h*.025);
+ // exhausts
+ ctx.fillStyle='#9aa5a2';ctx.beginPath();ctx.ellipse(x+w*.24,y+h*.96,w*.055,h*.025,0,0,Math.PI*2);ctx.ellipse(x+w*.76,y+h*.96,w*.055,h*.025,0,0,Math.PI*2);ctx.fill();
+ ctx.restore();
+}
+function drawFallbackTree(ctx,x,groundY,size,side){
+ ctx.save();ctx.fillStyle='rgba(0,0,0,.2)';ctx.beginPath();ctx.ellipse(x,groundY,size*.45,size*.11,0,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle='#493a2b';ctx.fillRect(x-size*.06,groundY-size*.55,size*.12,size*.58);
+ poly(ctx,[[x,groundY-size*1.9],[x-size*.52,groundY-size*.55],[x+size*.52,groundY-size*.55]],'#183b2d');
+ poly(ctx,[[x,groundY-size*1.55],[x-size*.42,groundY-size*.22],[x+size*.42,groundY-size*.22]],'#23513a');
+ ctx.restore();
+}
+function drawFallbackScene(dt){
+ if(!fallbackCtx||!fallbackWidth||!fallbackHeight)return;
+ const ctx=fallbackCtx,W=fallbackWidth,H=fallbackHeight,cx=W/2,horizon=H*.31,roadTop=W*.10,roadBottom=W*.52;
+ const moving=raceActive?currentSpeed:85;
+ fallbackScroll=(fallbackScroll+dt*(moving/160+boost*.28))%1;
+ // sky and distant terrain
+ const sky=ctx.createLinearGradient(0,0,0,H);sky.addColorStop(0,'#7da3a3');sky.addColorStop(.36,'#cad1b0');sky.addColorStop(.39,'#506f57');sky.addColorStop(1,'#172e24');ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
+ poly(ctx,[[0,horizon+H*.07],[W*.12,horizon-H*.09],[W*.24,horizon+H*.035],[W*.42,horizon-H*.12],[W*.58,horizon+H*.015],[W*.78,horizon-H*.11],[W,horizon+H*.06],[W,H],[0,H]],'#315343');
+ // repeating roadside forests at perspective
+ for(let i=0;i<11;i++){const depth=((i/11+fallbackScroll*.55)%1),scale=.18+depth*1.1,y=horizon+depth*H*.78;drawFallbackTree(ctx,W*.06+depth*W*.12,y,scale*H*.24,-1);drawFallbackTree(ctx,W*.94-depth*W*.12,y-H*.04,scale*H*.25,1);}
+ // road trapezoid
+ const road=ctx.createLinearGradient(0,horizon,0,H);road.addColorStop(0,'#586165');road.addColorStop(.35,'#373f43');road.addColorStop(1,'#20282d');
+ poly(ctx,[[cx-roadTop,horizon],[cx+roadTop,horizon],[cx+roadBottom,H],[cx-roadBottom,H]],road);
+ // road side concrete shoulders
+ poly(ctx,[[cx-roadTop,horizon],[cx-roadTop-W*.025,horizon],[cx-roadBottom-W*.035,H],[cx-roadBottom,H]],'#b3b6a5');
+ poly(ctx,[[cx+roadTop,horizon],[cx+roadTop+W*.025,horizon],[cx+roadBottom,H],[cx+roadBottom+W*.035,H]],'#b3b6a5');
+ // kerb blocks run towards the player
+ for(let i=0;i<22;i++){
+  const d=((i/22+fallbackScroll*1.5)%1),y=horizon+d*d*(H-horizon),half=roadTop+d*(roadBottom-roadTop),blockH=2+d*H*.026;
+  ctx.fillStyle=i%2?'#e7e5d5':'#d44e4d';
+  ctx.fillRect(cx-half-W*.026,y-blockH/2,W*.026,blockH);ctx.fillRect(cx+half,y-blockH/2,W*.026,blockH);
+ }
+ // lanes and fast moving perspective dashes
+ for(const lane of [-1,1]){
+  for(let i=0;i<13;i++){
+   const d=((i/13+fallbackScroll*1.9)%1),y=horizon+d*d*(H-horizon),half=roadTop+d*(roadBottom-roadTop),x=cx+lane*half/3,dh=2+d*H*.035,dw=1+d*W*.004;
+   ctx.fillStyle='rgba(240,242,224,.92)';ctx.fillRect(x-dw/2,y-dh/2,dw,dh);
+  }
+ }
+ // centre/edge racing line glows
+ ctx.strokeStyle='rgba(255,245,199,.48)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(cx-roadTop,horizon);ctx.lineTo(cx-roadBottom,H);ctx.moveTo(cx+roadTop,horizon);ctx.lineTo(cx+roadBottom,H);ctx.stroke();
+ // rival cars advance toward camera as correct answers build speed
+ for(let i=0;i<2;i++){
+  if(overtaken[i])continue;
+  const adv=Math.max(0,raceAdvantage-(i===0?0:2));
+  const depth=Math.min(.78,(i===0?.20:.10)+adv*.115);
+  const y=horizon+depth*(H-horizon),half=roadTop+depth*(roadBottom-roadTop),x=cx+(i===0?-.30:.30)*half;
+  const scale=.26+depth*.78,w=Math.min(W*.33,W*.43*scale),h=w*.50;
+  drawFallbackCar(ctx,x,y,w,h,i===0?'#168fa2':'#cc3d4d',i===0?'#63e1d3':'#ffb5a4',scale);
+  if(adv>=4){overtaken[i]=true;updateRaceDisplay();}
+ }
+ // player's own car stays large in the foreground
+ const playerX=cx+playerLane*W*.12,pw=Math.min(W*.36,Math.max(105,W*.28)),ph=pw*.53;
+ drawFallbackCar(ctx,playerX,H*.94,pw,ph,'#a5d72e','#e2ff76',1);
+ // speed streaks along the lower edges
+ if(raceActive&&currentSpeed>150){ctx.strokeStyle='rgba(218,255,163,'+Math.min(.5,(currentSpeed-150)/300)+')';ctx.lineWidth=1.2;for(let i=0;i<7;i++){const x=(i/7)*W;ctx.beginPath();ctx.moveTo(x,H*.6);ctx.lineTo(x+(x<cx?-16:16),H*.92);ctx.stroke();}}
+}
+function fallbackLoop(ts){
+ requestAnimationFrame(fallbackLoop);if(!fallbackCtx||fallbackCanvas.style.display==='none')return;
+ const dt=Math.min(.05,Math.max(0,(ts-fallbackLast)/1000||.016));fallbackLast=ts;
+ currentSpeed+=(targetSpeed-currentSpeed)*Math.min(1,dt*3.4);
+ drawFallbackScene(dt);
+}
+resizeFallback();requestAnimationFrame(fallbackLoop);
+window.addEventListener('resize',resizeFallback);
+
+// Try loading the full WebGL renderer. The local canvas race stays visible if CDN/WebGL fails.
+(async()=>{
+ const sources=[
+  'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js',
+  'https://unpkg.com/three@0.160.0/build/three.module.js',
+  'https://esm.sh/three@0.160.0'
+ ];
+ let loaded=null;
+ for(const src of sources){try{loaded=await import(src);break;}catch(err){console.warn('3D source failed:',src,err);}}
+ if(!loaded)return;
+ THREE=loaded;
+ try{
+   setupScene();
+   resizeRaceScene();
+   canvas.style.display='block';
+   fallbackCanvas.style.display='none';
+   document.getElementById('raceStage').classList.remove('no-3d');
+   if(raceActive)updateRaceDisplay();
+ }catch(error){
+   console.warn('WebGL unavailable; using built-in race renderer:',error);
+   document.getElementById('raceStage').classList.add('no-3d');
+   canvas.style.display='none';
+   fallbackCanvas.style.display='block';
+   resizeFallback();
+ }
+})();
 </script>
-</body>
-</html>
